@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Historical Atlas</title>
+  <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet">
+  <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #map { position: absolute; top: 0; bottom: 56px; width: 100%; }
+    #controls { position: absolute; bottom: 0; height: 56px; width: 100%;
+                display: flex; align-items: center; gap: 16px;
+                padding: 0 16px; box-sizing: border-box; background: #fff; }
+    #slider { flex: 1; }
+    #year { min-width: 56px; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="controls">
+    <input type="range" id="slider" min="1886" max="2019" value="1910" step="1">
+    <span id="year">1910</span>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:8080/api/v1";
+
+    // Shown while the very first request is still in flight.
+    const EMPTY = { type: "FeatureCollection", features: [] };
+
+    const slider = document.getElementById("slider");
+    const yearLabel = document.getElementById("year");
+
+    // No basemap tiles -- see PROJECT.md section 5 for why. The
+    // background layer is just an ocean color; the country polygons
+    // themselves are the entire map.
+    const map = new maplibregl.Map({
+      container: "map",
+      center: [10, 50],
+      zoom: 3,
+      style: {
+        version: 8,
+        projection: { type: "globe" },
+        sources: {},
+        layers: [
+          { id: "ocean", type: "background", paint: { "background-color": "#a9c6dd" } }
+        ]
+      }
+    });
+
+    // MapLibre needs the map to finish initializing before you can add
+    // sources or layers to it -- "load" fires once that's done.
+    map.on("load", () => {
+      // Permanent background layer: the union of every border that has
+      // EVER existed in the dataset, regardless of year. Without this,
+      // land that hasn't been formalized as a state YET (e.g. much of
+      // Africa before the 1890s) is indistinguishable from open ocean --
+      // both are just the background color. This is still "the polygons
+      // are the map", not an external basemap: it's derived from the
+      // exact same CShapes data, just unioned across all time instead of
+      // filtered to one date.
+      map.addSource("landmass", { type: "geojson", data: "landmass.geojson" });
+      map.addLayer({
+        id: "landmass-fill",
+        type: "fill",
+        source: "landmass",
+        paint: { "fill-color": "#c9c2b3" }
+      });
+
+      map.addSource("borders", { type: "geojson", data: EMPTY });
+
+      map.addLayer({
+        id: "borders-fill",
+        type: "fill",
+        source: "borders",
+        paint: { "fill-color": "#ded3ba" }
+      });
+
+      map.addLayer({
+        id: "borders-line",
+        type: "line",
+        source: "borders",
+        paint: { "line-color": "#6b5843", "line-width": 0.8 }
+      });
+
+      loadYear(slider.value);
+    });
+
+    // Debounce: without this, dragging the slider fires one HTTP request
+    // per pixel moved. "pending" holds the scheduled call so we can
+    // cancel it every time the slider moves again, and only the LAST
+    // one -- 120ms after the user stops dragging -- actually runs.
+    let pending;
+    slider.addEventListener("input", () => {
+      yearLabel.textContent = slider.value;
+      clearTimeout(pending);
+      pending = setTimeout(() => loadYear(slider.value), 120);
+    });
+
+    async function loadYear(year) {
+      const zoom = Math.round(map.getZoom());
+      const url = `${API_BASE}/borders?date=${year}-01-01&zoom=${zoom}`;
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+        const geoJson = await response.json();
+        map.getSource("borders").setData(geoJson);
+      } catch (error) {
+        console.error("Could not load borders:", error);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Raw CShapes 2.0 dataset -- not redistributed here, download from
+# https://icr.ethz.ch/data/cshapes/ (see DATA_SOURCES.md)
+data/
+
+# Build output
+historytimeline/target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+Thumbs.db
+.DS_Store
