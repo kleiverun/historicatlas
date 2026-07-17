@@ -48,11 +48,14 @@ public class BorderService {
                 SELECT id, ST_CoverageSimplify(geom, ?) OVER () AS geom
                 FROM cleaned
             )
+            -- ST_Multi: the coverage functions demote single-part
+            -- MultiPolygons to plain Polygons; force MultiPolygon so the
+            -- GeoJSON geometry type is stable for API consumers.
             SELECT json_build_object(
                 'type', 'FeatureCollection',
                 'features', COALESCE(json_agg(json_build_object(
                     'type', 'Feature',
-                    'geometry', ST_AsGeoJSON(s.geom)::json,
+                    'geometry', ST_AsGeoJSON(ST_Multi(s.geom))::json,
                     'properties', json_build_object(
                         'name', f.name,
                         'precision', f.precision,
@@ -73,7 +76,9 @@ public class BorderService {
         return jdbcTemplate.queryForObject(QUERY, String.class, sqlDate, sqlDate, tolerance);
     }
 
-    private static double toleranceForZoom(int zoom) {
+    // Package-private (no modifier) instead of private so the unit test
+    // in the same package can call it directly.
+    static double toleranceForZoom(int zoom) {
         // Each zoom level roughly doubles the map scale, so simplification
         // tolerance halves accordingly. Degrees, not meters -- the
         // geometries are stored in WGS84 (EPSG:4326). This is a first-guess

@@ -1,0 +1,53 @@
+# The whole stack: PostGIS + Spring Boot backend + static frontend.
+#
+#   docker compose up --build
+#
+# Frontend:  http://localhost:5500   (port matches the CORS allowlist)
+# API:       http://localhost:8080/api/v1/borders?date=1910-01-01
+# Database:  localhost:5433 (same port the standalone atlas-db container
+#            uses -- stop that one first, or this port binding fails)
+#
+# The database starts empty apart from the Flyway schema; run the CShapes
+# import (ImportRunner, see DATA_SOURCES.md) to fill it.
+
+services:
+  db:
+    image: postgis/postgis:17-3.6-alpine
+    environment:
+      POSTGRES_PASSWORD: atlas
+    ports:
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./historytimeline
+    ports:
+      - "8080:8080"
+    environment:
+      # Overrides the localhost URL in application.properties; inside the
+      # compose network the database is reachable as "db" on its
+      # internal port 5432.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: atlas
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "5500:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
