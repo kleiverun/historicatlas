@@ -9,8 +9,6 @@ const EMPTY = { type: "FeatureCollection", features: [] };
 // Marked as ticks under the year slider -- the moments where the map
 // visibly redraws itself.
 const KEY_YEARS = [
-  { year: 1861, label: "1861 — Italian unification" },
-  { year: 1871, label: "1871 — German Empire proclaimed" },
   { year: 1914, label: "1914 — First World War begins" },
   { year: 1918, label: "1918 — Armistice; new states emerge" },
   { year: 1939, label: "1939 — Second World War begins" },
@@ -47,7 +45,7 @@ const map = new maplibregl.Map({
   attributionControl: {
     compact: false,
     customAttribution:
-      '<a href="sources.html">CShapes © ETH Zürich · CC BY-NC-SA 4.0</a>'
+      '<a href="sources.html">CShapes 2.0 © ETH Zürich · CC BY-NC-SA 4.0</a>'
   },
   style: {
     version: 8,

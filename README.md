@@ -3,10 +3,9 @@
 **Europe's borders, dragged through time.**
 
 A web application that shows how national borders change over time. Drag the
-timeline slider and the map redraws the borders as they were — from 1816 to
-2019, backed by [CShapes 2.0](https://icr.ethz.ch/data/cshapes/) (ETH Zürich,
-global 1886–2019) and [CShapes-Europe](https://icr.ethz.ch/data/cshapes/)
-(Cederman et al., European states 1816–1885).
+timeline slider and the map redraws the borders as they were — from 1886 to
+2019, backed by the academically curated [CShapes 2.0](https://icr.ethz.ch/data/cshapes/)
+dataset.
 
 <!-- TODO: screenshot / GIF of the slider in action goes here -->
 
@@ -74,33 +73,6 @@ ogr2ogr --config SHAPE_ENCODING ISO-8859-1 \
   -nln cshapes_raw -nlt MULTIPOLYGON -t_srs EPSG:4326 \
   -lco GEOMETRY_NAME=geom -lco FID=id -overwrite
 ```
-
-**2b. (Optional) Extend Europe back to 1816.** Download
-`CShapes-Europe.geojson` from the same page into `data/`, stage it in
-the database (the file is small enough to parse in SQL — no GDAL
-needed), and run the second importer:
-
-```bash
-docker cp data/CShapes-Europe.geojson atlas-db:/tmp/
-docker exec atlas-db psql -U postgres -c "
-  CREATE SCHEMA IF NOT EXISTS staging;
-  CREATE TABLE staging.cshapes_europe_raw AS
-  SELECT (feat->'properties'->>'Id')::int     AS id,
-         (feat->'properties'->>'Holder')::int AS holder,
-         feat->'properties'->>'Name'          AS name,
-         feat->'properties'->>'Status'        AS status,
-         (feat->'properties'->>'From')::int   AS from_year,
-         (feat->'properties'->>'To')::int     AS to_year,
-         ST_SetSRID(ST_GeomFromGeoJSON(feat->>'geometry'), 4326) AS geom
-  FROM (SELECT jsonb_array_elements(
-          pg_read_file('/tmp/CShapes-Europe.geojson')::jsonb->'features') AS feat) f;"
-cd historytimeline && ./mvnw -q compile exec:java \
-  -Dexec.mainClass=com.backend.historytimeline.tools.ImportEuropeRunner
-```
-
-`ImportEuropeRunner` clips the rows to 1816–1885 (CShapes 2.0 owns
-1886 onwards) and reuses existing polities via the shared Gleditsch &
-Ward codes — see the class comment for details.
 
 **3. Run the backend** — Flyway creates the schema on startup, and
 `ImportRunner` moves the staged rows into the normalized model:
