@@ -26,6 +26,24 @@ jobs:
       - name: Build and run tests
         run: ./mvnw --batch-mode verify
 
+  frontend-tests:
+    name: Frontend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Node's built-in test runner discovers *.test.js -- no npm
+      # install needed.
+      - name: Run unit tests
+        run: node --test
+
   lint:
     name: Lint (Checkstyle)
     runs-on: ubuntu-latest
