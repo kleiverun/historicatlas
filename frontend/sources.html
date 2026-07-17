@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Data Sources — Historical Atlas</title>
+  <style>
+    :root {
+      --paper: #faf7f1;
+      --ink: #3d3428;
+      --ink-soft: #7a6d5c;
+      --rule: #e0d8ca;
+    }
+    body { margin: 0; background: var(--paper); color: var(--ink);
+           font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 680px; margin: 0 auto; padding: 48px 24px 64px; }
+    h1 { font-family: Georgia, "Times New Roman", serif;
+         font-size: 26px; letter-spacing: 0.1em; text-transform: uppercase;
+         color: var(--ink); margin: 0 0 8px; }
+    .back { font-size: 14px; color: var(--ink-soft); text-decoration: none; }
+    .back:hover { color: var(--ink); text-decoration: underline; }
+    .intro { color: var(--ink-soft); font-size: 14px; line-height: 1.6;
+             border-bottom: 1px solid var(--rule); padding-bottom: 20px; }
+    .source { border-bottom: 1px solid var(--rule); padding: 24px 0; }
+    .source h2 { font-family: Georgia, "Times New Roman", serif;
+                 font-size: 20px; margin: 0 0 6px; }
+    .license { display: inline-block; font-size: 12px; padding: 2px 10px;
+               border: 1px solid var(--rule); border-radius: 12px;
+               color: var(--ink-soft); margin-bottom: 12px; }
+    blockquote { margin: 0 0 12px; padding-left: 14px;
+                 border-left: 3px solid var(--rule);
+                 font-family: Georgia, "Times New Roman", serif;
+                 font-style: italic; font-size: 15px; line-height: 1.6; }
+    .source a { color: #5c6e8a; }
+    #error { color: #b3564a; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <a class="back" href="index.html">&larr; Back to the atlas</a>
+    <h1>Data Sources</h1>
+    <p class="intro">
+      The borders shown in this atlas are derived from the datasets
+      listed below. In accordance with the CC BY-NC-SA 4.0 license of
+      the primary dataset, this project is non-commercial and any data
+      derived from it is shared under the same license.
+    </p>
+    <div id="sources"></div>
+    <p id="error" hidden>Could not load the source list from the API.</p>
+  </main>
+
+  <script>
+    const API_BASE = "http://localhost:8080/api/v1";
+
+    async function loadSources() {
+      try {
+        const response = await fetch(`${API_BASE}/sources`);
+        if (!response.ok) {
+          throw new Error("HTTP " + response.status);
+        }
+        for (const source of await response.json()) {
+          document.getElementById("sources").appendChild(render(source));
+        }
+      } catch (error) {
+        console.error("Could not load sources:", error);
+        document.getElementById("error").hidden = false;
+      }
+    }
+
+    function render(source) {
+      const section = document.createElement("section");
+      section.className = "source";
+
+      const name = document.createElement("h2");
+      name.textContent = source.name;
+
+      const license = document.createElement("span");
+      license.className = "license";
+      license.textContent = source.license;
+
+      const attribution = document.createElement("blockquote");
+      attribution.textContent = source.attribution;
+
+      section.append(name, license, attribution);
+
+      if (source.url) {
+        const link = document.createElement("a");
+        link.href = source.url;
+        link.textContent = source.url;
+        section.appendChild(link);
+      }
+      return section;
+    }
+
+    loadSources();
+  </script>
+</body>
+</html>

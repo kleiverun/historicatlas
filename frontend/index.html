@@ -50,6 +50,9 @@
               background: #fff; color: var(--ink); font-size: 13px; }
     #search::placeholder { color: var(--ink-soft); }
     #search.not-found { border-color: #b3564a; outline-color: #b3564a; }
+    #sources-link { font-size: 13px; color: var(--ink-soft);
+                    text-decoration: none; white-space: nowrap; }
+    #sources-link:hover { color: var(--ink); text-decoration: underline; }
     .maplibregl-popup-content { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
                                 background: var(--paper); border: 1px solid var(--rule);
                                 border-radius: 6px; padding: 10px 14px;
@@ -72,6 +75,7 @@
     </div>
     <span id="year">1910</span>
     <input type="search" id="search" placeholder="Find a country&hellip;">
+    <a id="sources-link" href="sources.html">Sources</a>
   </div>
 
   <script src="atlas.js"></script>

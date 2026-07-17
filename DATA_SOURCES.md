@@ -1,5 +1,8 @@
 # Data sources
 
+The same information is exposed at runtime by `GET /api/v1/sources` and
+on the Sources page in the app, both backed by the `data_source` table.
+
 ## CShapes 2.0
 
 - **Publisher:** International Conflict Research group, ETH Zürich
