@@ -6,18 +6,39 @@
   <link href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css" rel="stylesheet">
   <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <style>
-    body { margin: 0; font-family: sans-serif; }
-    #map { position: absolute; top: 0; bottom: 56px; width: 100%; }
-    #controls { position: absolute; bottom: 0; height: 56px; width: 100%;
-                display: flex; align-items: center; gap: 16px;
-                padding: 0 16px; box-sizing: border-box; background: #fff; }
-    #slider { flex: 1; }
-    #year { min-width: 56px; font-variant-numeric: tabular-nums; }
+    :root {
+      --paper: #faf7f1;
+      --ink: #3d3428;
+      --ink-soft: #7a6d5c;
+      --rule: #e0d8ca;
+    }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
+    #map { position: absolute; top: 0; bottom: 64px; width: 100%; }
+    #controls { position: absolute; bottom: 0; height: 64px; width: 100%;
+                display: flex; align-items: center; gap: 20px;
+                padding: 0 24px; box-sizing: border-box;
+                background: var(--paper); border-top: 1px solid var(--rule);
+                box-shadow: 0 -2px 8px rgba(61, 52, 40, 0.06); }
+    #title { font-family: Georgia, "Times New Roman", serif;
+             font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase;
+             color: var(--ink-soft); white-space: nowrap; }
+    #play { width: 36px; height: 36px; flex-shrink: 0;
+            border: 1px solid var(--rule); border-radius: 50%;
+            background: transparent; color: var(--ink-soft);
+            font-size: 13px; line-height: 1; cursor: pointer; }
+    #play:hover { background: var(--rule); color: var(--ink); }
+    #slider { flex: 1; accent-color: #8a7862; }
+    #year { min-width: 72px; text-align: right;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 26px; font-weight: bold;
+            font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body>
   <div id="map"></div>
   <div id="controls">
+    <span id="title">Historical Atlas</span>
+    <button id="play" aria-label="Play">&#9654;</button>
     <input type="range" id="slider" min="1886" max="2019" value="1910" step="1">
     <span id="year">1910</span>
   </div>
@@ -27,6 +48,22 @@
 
     // Shown while the very first request is still in flight.
     const EMPTY = { type: "FeatureCollection", features: [] };
+
+    // Muted pastels in the style of a classic political atlas. Each
+    // country gets a stable color from its name (hash below), so a
+    // country keeps its color as the year slider moves.
+    const PALETTE = [
+      "#f4d7a1", "#e9b7a8", "#cfd9a8", "#b8d0c8",
+      "#d9c4dd", "#f0c199", "#c8cfe3", "#e3d3b1"
+    ];
+
+    function colorFor(name) {
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = (hash * 31 + name.charCodeAt(i)) | 0;
+      }
+      return PALETTE[Math.abs(hash) % PALETTE.length];
+    }
 
     const slider = document.getElementById("slider");
     const yearLabel = document.getElementById("year");
@@ -41,9 +78,12 @@
       style: {
         version: 8,
         projection: { type: "globe" },
+        // Symbol layers (the country name labels) need a glyph server
+        // to rasterize text from; OpenFreeMap hosts the Noto fonts.
+        glyphs: "https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf",
         sources: {},
         layers: [
-          { id: "ocean", type: "background", paint: { "background-color": "#a9c6dd" } }
+          { id: "ocean", type: "background", paint: { "background-color": "#a5c3da" } }
         ]
       }
     });
@@ -64,27 +104,110 @@
         id: "landmass-fill",
         type: "fill",
         source: "landmass",
-        paint: { "fill-color": "#c9c2b3" }
+        paint: { "fill-color": "#d8d2c4" }
       });
 
       map.addSource("borders", { type: "geojson", data: EMPTY });
+      map.addSource("labels", { type: "geojson", data: EMPTY });
 
       map.addLayer({
         id: "borders-fill",
         type: "fill",
         source: "borders",
-        paint: { "fill-color": "#ded3ba" }
+        paint: { "fill-color": ["get", "fill"] }
       });
 
       map.addLayer({
         id: "borders-line",
         type: "line",
         source: "borders",
-        paint: { "line-color": "#6b5843", "line-width": 0.8 }
+        paint: {
+          "line-color": "#7d6b55",
+          "line-width": ["interpolate", ["linear"], ["zoom"], 2, 0.5, 6, 1.2]
+        }
+      });
+
+      // One label point per country (computed in labelPoints below)
+      // rather than a symbol layer on the polygons themselves: MapLibre
+      // tiles GeoJSON sources internally, so large polygons would get
+      // one label per tile they cross.
+      map.addLayer({
+        id: "country-labels",
+        type: "symbol",
+        source: "labels",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": ["Noto Sans Regular"],
+          "text-transform": "uppercase",
+          "text-letter-spacing": 0.12,
+          // labelSize encodes country area, so big countries get big
+          // labels; zoom scales the whole range up as you approach.
+          "text-size": ["interpolate", ["linear"], ["zoom"],
+            2, ["*", ["get", "labelSize"], 0.8],
+            7, ["*", ["get", "labelSize"], 1.6]
+          ]
+        },
+        paint: {
+          "text-color": "#4a3f30",
+          "text-halo-color": "rgba(250, 247, 241, 0.85)",
+          "text-halo-width": 1.4
+        }
       });
 
       loadYear(slider.value);
     });
+
+    // Shoelace formula; degrees squared, only used to compare rings and
+    // rank countries by size, so the unit never matters.
+    function ringArea(ring) {
+      let sum = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        sum += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+      }
+      return sum / 2;
+    }
+
+    function ringCentroid(ring) {
+      const area = ringArea(ring);
+      let cx = 0, cy = 0;
+      for (let i = 0; i < ring.length - 1; i++) {
+        const cross = ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+        cx += (ring[i][0] + ring[i + 1][0]) * cross;
+        cy += (ring[i][1] + ring[i + 1][1]) * cross;
+      }
+      return [cx / (6 * area), cy / (6 * area)];
+    }
+
+    // One point feature per country: the centroid of its largest
+    // polygon (mainland, not overseas islands), plus a base text size
+    // derived from area so Russia isn't labelled as small as Andorra.
+    function labelPoints(geoJson) {
+      const features = geoJson.features.map((feature) => {
+        const polygons = feature.geometry.type === "Polygon"
+          ? [feature.geometry.coordinates]
+          : feature.geometry.coordinates;
+
+        let largest = null;
+        let largestArea = -1;
+        for (const polygon of polygons) {
+          const area = Math.abs(ringArea(polygon[0]));
+          if (area > largestArea) {
+            largestArea = area;
+            largest = polygon[0];
+          }
+        }
+
+        const magnitude = Math.log10(Math.max(largestArea, 1e-4));
+        const labelSize = Math.min(17, Math.max(8, 10 + 1.6 * (magnitude + 2)));
+
+        return {
+          type: "Feature",
+          geometry: { type: "Point", coordinates: ringCentroid(largest) },
+          properties: { name: feature.properties.name, labelSize }
+        };
+      });
+      return { type: "FeatureCollection", features };
+    }
 
     // Debounce: without this, dragging the slider fires one HTTP request
     // per pixel moved. "pending" holds the scheduled call so we can
@@ -92,9 +215,49 @@
     // one -- 120ms after the user stops dragging -- actually runs.
     let pending;
     slider.addEventListener("input", () => {
+      stopPlayback(); // grabbing the slider takes over from autoplay
       yearLabel.textContent = slider.value;
       clearTimeout(pending);
       pending = setTimeout(() => loadYear(slider.value), 120);
+    });
+
+    // Autoplay: one year every 300ms until the end of the dataset.
+    // Stopped by the button, by dragging the slider, or by running out
+    // of years.
+    const playButton = document.getElementById("play");
+    let playTimer = null;
+
+    function stopPlayback() {
+      clearInterval(playTimer);
+      playTimer = null;
+      playButton.innerHTML = "&#9654;";
+      playButton.setAttribute("aria-label", "Play");
+    }
+
+    function startPlayback() {
+      if (Number(slider.value) >= Number(slider.max)) {
+        slider.value = slider.min; // at the end: restart from the top
+      }
+      playTimer = setInterval(() => {
+        const next = Number(slider.value) + 1;
+        if (next > Number(slider.max)) {
+          stopPlayback();
+          return;
+        }
+        slider.value = next;
+        yearLabel.textContent = next;
+        loadYear(next);
+      }, 300);
+      playButton.innerHTML = "&#10074;&#10074;";
+      playButton.setAttribute("aria-label", "Pause");
+    }
+
+    playButton.addEventListener("click", () => {
+      if (playTimer) {
+        stopPlayback();
+      } else {
+        startPlayback();
+      }
     });
 
     async function loadYear(year) {
@@ -107,7 +270,11 @@
           throw new Error("HTTP " + response.status);
         }
         const geoJson = await response.json();
+        for (const feature of geoJson.features) {
+          feature.properties.fill = colorFor(feature.properties.name);
+        }
         map.getSource("borders").setData(geoJson);
+        map.getSource("labels").setData(labelPoints(geoJson));
       } catch (error) {
         console.error("Could not load borders:", error);
       }
