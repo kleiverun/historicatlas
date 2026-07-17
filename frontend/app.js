@@ -40,6 +40,13 @@ const map = new maplibregl.Map({
   container: "map",
   center: [10, 50],
   zoom: 3,
+  // The CC BY-NC-SA license wants the attribution visible where the
+  // data is shown -- on the map itself, not only on the Sources page.
+  attributionControl: {
+    compact: false,
+    customAttribution:
+      '<a href="sources.html">CShapes 2.0 © ETH Zürich · CC BY-NC-SA 4.0</a>'
+  },
   style: {
     version: 8,
     projection: { type: "globe" },
@@ -53,6 +60,8 @@ const map = new maplibregl.Map({
   }
 });
 window.atlasMap = map; // for debugging and browser-driven tests
+
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
 
 // The most recently loaded FeatureCollection; country search runs
 // against it, so search finds countries that exist in the shown year.
@@ -365,8 +374,16 @@ for (const { year, label } of KEY_YEARS) {
 
 // ---- Data loading ------------------------------------------------------
 
+// The year display pulses while any request is in flight (see the
+// #controls.loading rule). A counter, not a boolean: quick slider
+// moves can have several loads overlapping.
+let activeLoads = 0;
+const controls = document.getElementById("controls");
+
 async function loadYear(year) {
   const zoom = Math.round(map.getZoom());
+  activeLoads++;
+  controls.classList.add("loading");
   try {
     const response = await fetch(bordersUrl(year, zoom));
     if (!response.ok) {
@@ -390,5 +407,10 @@ async function loadYear(year) {
     history.replaceState(null, "", "#" + year);
   } catch (error) {
     console.error("Could not load borders:", error);
+  } finally {
+    activeLoads--;
+    if (activeLoads === 0) {
+      controls.classList.remove("loading");
+    }
   }
 }
