@@ -100,6 +100,17 @@ function featureBounds(feature) {
   return [[minLng, minLat], [maxLng, maxLat]];
 }
 
+// [Feature 7] Which country names appeared and disappeared between
+// two FeatureCollections. Fuels the "what changed" toast.
+function diffCountries(oldGeoJson, newGeoJson) {
+  const oldNames = new Set(oldGeoJson.features.map((f) => f.properties.name));
+  const newNames = new Set(newGeoJson.features.map((f) => f.properties.name));
+  return {
+    added: [...newNames].filter((n) => !oldNames.has(n)).sort(),
+    removed: [...oldNames].filter((n) => !newNames.has(n)).sort()
+  };
+}
+
 // "#1918" -> 1918, clamped to the dataset range so a shared link with
 // an out-of-range year still lands somewhere valid. Anything that
 // isn't a four-ish digit number -> null (caller keeps its default).
@@ -142,6 +153,7 @@ function formatPeriod(validFrom, validTo) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     PALETTE, colorFor, ringArea, ringCentroid,
-    featureAnchor, featureBounds, labelPoints, parseYearHash, findCountry, formatPeriod
+    featureAnchor, featureBounds, labelPoints, parseYearHash, findCountry, formatPeriod,
+    diffCountries
   };
 }

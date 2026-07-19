@@ -17,11 +17,30 @@ const KEY_YEARS = [
   { year: 1991, label: "1991 — Dissolution of the Soviet Union" }
 ];
 
+// [Feature 3] Era label ranges shown below the year number.
+const ERA_LABELS = [
+  [1886, 1913, "Belle Époque"],
+  [1914, 1918, "First World War"],
+  [1919, 1938, "Interwar period"],
+  [1939, 1945, "Second World War"],
+  [1946, 1990, "Cold War"],
+  [1991, 2001, "Post-Soviet era"],
+  [2002, 2019, "21st century"],
+];
+function eraLabel(year) {
+  for (const [from, to, label] of ERA_LABELS) {
+    if (year >= from && year <= to) return label;
+  }
+  return "";
+}
+
 const slider = document.getElementById("slider");
 const yearLabel = document.getElementById("year");
 const playButton = document.getElementById("play");
 const speedButton = document.getElementById("speed");
 const searchInput = document.getElementById("search");
+const eraEl = document.getElementById("era");                   // [Feature 3]
+const hoverTooltip = document.getElementById("hover-tooltip");  // [Feature 1]
 
 const YEAR_MIN = Number(slider.min);
 const YEAR_MAX = Number(slider.max);
@@ -29,6 +48,7 @@ const YEAR_MAX = Number(slider.max);
 function updateSliderFill() {
   const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
   slider.style.setProperty('--pct', pct + '%');
+  eraEl.textContent = eraLabel(Number(slider.value)); // [Feature 3]
 }
 updateSliderFill();
 
@@ -37,6 +57,7 @@ const initialYear = parseYearHash(location.hash, YEAR_MIN, YEAR_MAX);
 if (initialYear !== null) {
   slider.value = initialYear;
   yearLabel.textContent = initialYear;
+  updateSliderFill(); // [Feature 3] sync era + fill with hash year
 }
 
 // No basemap tiles -- see PROJECT.md section 5 for why. The
@@ -163,10 +184,16 @@ map.on("load", () => {
   map.on("mousemove", "borders-fill", (event) => {
     map.getCanvas().style.cursor = "pointer";
     setHoveredCountry(event.features[0].id);
+    // [Feature 1] hover tooltip
+    hoverTooltip.textContent = event.features[0].properties.name;
+    hoverTooltip.style.display = "block";
+    hoverTooltip.style.left = (event.originalEvent.clientX + 14) + "px";
+    hoverTooltip.style.top = (event.originalEvent.clientY - 36) + "px";
   });
   map.on("mouseleave", "borders-fill", () => {
     map.getCanvas().style.cursor = "";
     setHoveredCountry(null);
+    hoverTooltip.style.display = "none"; // [Feature 1]
   });
 
   map.on("click", "borders-fill", (event) => {
@@ -280,6 +307,7 @@ function startPlayback() {
   if (Number(slider.value) >= YEAR_MAX) {
     slider.value = YEAR_MIN;
     yearLabel.textContent = YEAR_MIN;
+    updateSliderFill(); // [Feature 3] sync era on playback reset
   }
   clearInterval(playTimer);
   playTimer = setInterval(() => {
@@ -383,6 +411,7 @@ for (const { year, label } of KEY_YEARS) {
   const tick = document.createElement("span");
   tick.className = "tick";
   tick.title = label;
+  tick.dataset.label = label; // [Feature 4] CSS ::after callout reads this
   tick.style.left = (100 * (year - YEAR_MIN) / (YEAR_MAX - YEAR_MIN)) + "%";
   ticks.appendChild(tick);
 }
@@ -394,6 +423,36 @@ for (const { year, label } of KEY_YEARS) {
 // moves can have several loads overlapping.
 let activeLoads = 0;
 const controls = document.getElementById("controls");
+
+// [Feature 7] "What changed" toast: when the year changes, list the
+// countries that appeared and disappeared. Zoom refetches of the same
+// year carry the same country set, so the year guard also mutes them.
+const diffToast = document.getElementById("diff-toast");
+let lastDiffYear = null;
+let diffHideTimer = null;
+
+function namesSummary(names) {
+  return names.length > 4
+    ? names.slice(0, 3).join(", ") + " and " + (names.length - 3) + " more"
+    : names.join(", ");
+}
+
+function showDiffToast(fromYear, toYear, diff) {
+  if (diff.added.length === 0 && diff.removed.length === 0) {
+    return;
+  }
+  const parts = [];
+  if (diff.added.length > 0) {
+    parts.push("+ " + namesSummary(diff.added));
+  }
+  if (diff.removed.length > 0) {
+    parts.push("− " + namesSummary(diff.removed));
+  }
+  diffToast.textContent = `${fromYear} → ${toYear}: ` + parts.join("   ");
+  diffToast.classList.add("visible");
+  clearTimeout(diffHideTimer);
+  diffHideTimer = setTimeout(() => diffToast.classList.remove("visible"), 6000);
+}
 
 async function loadYear(year) {
   const zoom = Math.round(map.getZoom());
@@ -408,6 +467,11 @@ async function loadYear(year) {
     for (const feature of geoJson.features) {
       feature.properties.fill = colorFor(feature.properties.name);
     }
+    // [Feature 7] diff against the previous year before replacing it
+    if (currentGeoJson.features.length > 0 && Number(year) !== lastDiffYear) {
+      showDiffToast(lastDiffYear, year, diffCountries(currentGeoJson, geoJson));
+    }
+    lastDiffYear = Number(year);
     currentGeoJson = geoJson;
     lastFetchedZoom = zoom;
     // generateId hands out fresh ids on every setData, so a lingering
