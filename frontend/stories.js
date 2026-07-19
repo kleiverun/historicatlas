@@ -20,7 +20,7 @@ const STORIES = [
       },
       {
         year: 1920, center: [22, 50], zoom: 3.4,
-        text: "The peace treaties redraw the map. Poland returns after 123 years of partition. Czechoslovakia, Hungary, and Yugoslavia appear from Austria-Hungary; Finland, Estonia, Latvia, and Lithuania break from Russia."
+        text: "The peace treaties redraw the map. Poland returns after 123 years of partition. Czechoslovakia and Hungary emerge from Austria-Hungary; Yugoslavia unites Serbia with former Habsburg lands; Finland, Estonia, Latvia, and Lithuania break from Russia."
       },
       {
         year: 1923, center: [32, 39], zoom: 3.6,
@@ -34,7 +34,7 @@ const STORIES = [
     steps: [
       {
         year: 1957, center: [10, 5], zoom: 2.8,
-        text: "In 1957 nearly the whole of Africa is ruled from Europe. Ghana becomes the first sub-Saharan colony to win independence — a signal that the colonial order is ending."
+        text: "In 1957 nearly the whole of Africa is ruled from Europe. Ghana wins independence from Britain — widely seen as the start of the decolonization wave that will sweep the continent."
       },
       {
         year: 1960, center: [15, 10], zoom: 2.8,
@@ -46,7 +46,7 @@ const STORIES = [
       },
       {
         year: 1975, center: [20, -10], zoom: 2.8,
-        text: "Portugal is the last major colonial power to leave. Angola and Mozambique become independent in 1975, closing the era of European colonies covering the continent."
+        text: "Portugal is the last major colonial empire to dissolve: Angola and Mozambique become independent in 1975. A few holdouts remain — white-minority rule in Rhodesia lasts until 1980, and Namibia waits until 1990."
       }
     ]
   },

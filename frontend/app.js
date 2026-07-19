@@ -197,6 +197,11 @@ map.on("load", () => {
   });
 
   map.on("click", "borders-fill", (event) => {
+    // [Feature 9] clicks on an event marker belong to events.js
+    if (map.getLayer("event-markers") &&
+        map.queryRenderedFeatures(event.point, { layers: ["event-markers"] }).length > 0) {
+      return;
+    }
     const props = event.features[0].properties;
     openCountryPopup(props, event.lngLat);
     const full = findCountry(currentGeoJson, props.name);
@@ -291,26 +296,32 @@ slider.addEventListener("input", () => {
 // button, by dragging the slider, or by running out of years. The
 // speed button cycles 1x / 2x / 4x.
 
-const BASE_TICK_MS = 300;
+const BASE_TICK_MS = 600;
 const SPEEDS = [1, 2, 4];
 let speedIndex = 0;
 let playTimer = null;
 
 function stopPlayback() {
-  clearInterval(playTimer);
+  clearTimeout(playTimer);
   playTimer = null;
   playButton.innerHTML = "&#9654;";
   playButton.setAttribute("aria-label", "Play");
 }
 
-function startPlayback() {
-  if (Number(slider.value) >= YEAR_MAX) {
-    slider.value = YEAR_MIN;
-    yearLabel.textContent = YEAR_MIN;
-    updateSliderFill(); // [Feature 3] sync era on playback reset
-  }
-  clearInterval(playTimer);
-  playTimer = setInterval(() => {
+// A setTimeout chain rather than setInterval: the delay varies per
+// year (see the event-marker rule below), so each tick schedules the
+// next one itself.
+function scheduleTick() {
+  // [Feature 9] linger a full second on a year with an event marker,
+  // so the viewer gets time to notice it -- deliberately NOT scaled
+  // by the speed button, since reading time doesn't get faster.
+  // Guarded so deleting events.js (which defines EVENTS) reverts to
+  // the flat tempo.
+  const current = Number(slider.value);
+  const hasEvent = typeof EVENTS !== "undefined"
+    && EVENTS.some((e) => e.year === current);
+  const delay = hasEvent ? 1000 : BASE_TICK_MS / SPEEDS[speedIndex];
+  playTimer = setTimeout(() => {
     const next = Number(slider.value) + 1;
     if (next > YEAR_MAX) {
       stopPlayback();
@@ -321,7 +332,18 @@ function startPlayback() {
     updateSliderFill();
     loadYear(next);
     prefetchYear(next + 1);
-  }, BASE_TICK_MS / SPEEDS[speedIndex]);
+    scheduleTick();
+  }, delay);
+}
+
+function startPlayback() {
+  if (Number(slider.value) >= YEAR_MAX) {
+    slider.value = YEAR_MIN;
+    yearLabel.textContent = YEAR_MIN;
+    updateSliderFill(); // [Feature 3] sync era on playback reset
+  }
+  clearTimeout(playTimer);
+  scheduleTick();
   playButton.innerHTML = "&#10074;&#10074;";
   playButton.setAttribute("aria-label", "Pause");
 }
@@ -456,6 +478,12 @@ function showDiffToast(fromYear, toYear, diff) {
 
 async function loadYear(year) {
   const zoom = Math.round(map.getZoom());
+  // [Feature 9] markers depend only on the year, not the fetched
+  // geometry -- update them before the network round-trip so the
+  // marker is visible (and clickable) for the whole playback linger.
+  if (typeof updateEventMarkers === "function") {
+    updateEventMarkers(Number(year));
+  }
   activeLoads++;
   controls.classList.add("loading");
   try {

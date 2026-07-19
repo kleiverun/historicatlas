@@ -563,6 +563,38 @@ reversert — notert her for å ikke glemme opplegget.
 - Finn bildekilder for historiske stater uten ISO-kode
 - Test visuell balanse mot tekstetikettene (offset, størrelse, zoom-terskel)
 
+#### Kandidat: Wikidata-import av historiske hendelser
+
+Frontenden har i dag ~47 håndkuraterte hendelser i `events.js`
+([Feature 9]). Neste steg i skala er en batch-import fra Wikidata til
+egen tabell — samme mønster som CShapes-importen: hent én gang, lagre
+lokalt, server fra eget API. Ikke live-proxy: da arver man latens,
+nedetid og rate-limits, og kurateringsproblemet (hvilke hendelser
+fortjener en prikk?) løses uansett ikke av et nettverkskall.
+
+**Skisse:**
+- SPARQL mot `query.wikidata.org`: entiteter med `wdt:P585` (point in
+  time) innenfor datasettets årsspenn og `wdt:P625` (koordinater),
+  begrenset til relevante klasser (kriger, traktater, revolusjoner,
+  uavhengighetserklæringer, katastrofer, ...)
+- Bruk antall sitelinks som viktighets-proxy og behold f.eks. topp
+  20–50 per år — det filtrerer bort «valg i Liechtenstein»-støyen
+- Ny tabell `historical_event` (år, punkt-geometri, tittel, beskrivelse,
+  wikidata_id, sitelink_count) + Flyway-migrasjon
+- Endepunkt `GET /api/v1/events?date=...` med samme cache-headere som
+  `/borders`
+- `events.js` henter fra endepunktet i stedet for (eller i tillegg til)
+  den innebygde listen — kuraterte hendelser kan beholdes som et
+  «utstilt» lag med Wikidata som «vis flere»
+
+**Avklaringer før bygging:**
+- Lisens: Wikidata er CC0, så ingen attribusjonsplikt — men grei skikk
+  å kreditere på kildesiden likevel
+- Tekstkvalitet: Wikidata-beskrivelser er korte og varierende; vurder å
+  vise bare tittel + år + Wikipedia-lenke i stedet for egen brødtekst
+- Koordinatkvalitet: mange hendelser mangler P625 eller peker på et
+  land-sentroid; importen bør forkaste heller enn å gjette
+
 ---
 
 ## 8. Risikoer
