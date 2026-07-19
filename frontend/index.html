@@ -15,15 +15,16 @@
       --rule: #e0d8ca;
     }
     body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); }
-    #map { position: absolute; top: 0; bottom: 64px; width: 100%; }
-    #controls { position: absolute; bottom: 0; height: 64px; width: 100%;
-                display: flex; align-items: center; gap: 16px;
-                padding: 0 24px; box-sizing: border-box;
+    #map { position: absolute; top: 0; bottom: 72px; width: 100%; }
+    #controls { position: absolute; bottom: 0; height: 72px; width: 100%;
+                display: flex; align-items: center; gap: 12px;
+                padding: 0 20px; box-sizing: border-box;
                 background: var(--paper); border-top: 1px solid var(--rule);
-                box-shadow: 0 -2px 8px rgba(61, 52, 40, 0.06); }
+                box-shadow: 0 -2px 12px rgba(61, 52, 40, 0.08); }
     #title { font-family: Georgia, "Times New Roman", serif;
              font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase;
              color: var(--ink-soft); white-space: nowrap; }
+    .sep { width: 1px; height: 28px; background: var(--rule); flex-shrink: 0; margin: 0 4px; }
     #play { width: 36px; height: 36px; flex-shrink: 0;
             border: 1px solid var(--rule); border-radius: 50%;
             background: transparent; color: var(--ink-soft);
@@ -34,21 +35,33 @@
              background: transparent; color: var(--ink-soft);
              font-size: 12px; cursor: pointer; }
     #speed:hover { background: var(--rule); color: var(--ink); }
-    #timeline { flex: 1; position: relative; display: flex; align-items: center; }
-    #slider { width: 100%; accent-color: #8a7862; }
-    /* Key-year markers under the slider track; each carries the event
-       in its title attribute. The 8px inset matches half the thumb
-       width, so marks line up with where the thumb stops. */
-    #ticks { position: absolute; left: 8px; right: 8px;
-             top: calc(50% + 9px); height: 6px; }
-    .tick { position: absolute; width: 2px; height: 6px;
-            background: var(--ink-soft); opacity: 0.55; cursor: help; }
-    #year { min-width: 72px; text-align: right;
+    #year { min-width: 62px; text-align: right; flex-shrink: 0;
             font-family: Georgia, "Times New Roman", serif;
-            font-size: 26px; font-weight: bold;
+            font-size: 28px; font-weight: bold;
             font-variant-numeric: tabular-nums; }
-    #search { width: 150px; padding: 6px 10px; box-sizing: border-box;
-              border: 1px solid var(--rule); border-radius: 6px;
+    #timeline { flex: 1; position: relative; display: flex; align-items: center; min-width: 0; }
+    #slider { width: 100%; -webkit-appearance: none; appearance: none;
+              height: 3px; border-radius: 2px; outline: none; cursor: pointer;
+              background: linear-gradient(to right, #8a7862 var(--pct, 18%), var(--rule) var(--pct, 18%)); }
+    #slider::-webkit-slider-thumb { -webkit-appearance: none;
+              width: 14px; height: 14px; border-radius: 50%; background: #8a7862;
+              border: 2.5px solid var(--paper); box-shadow: 0 0 0 1.5px #8a7862;
+              cursor: pointer; transition: transform .12s; }
+    #slider:hover::-webkit-slider-thumb,
+    #slider:active::-webkit-slider-thumb { transform: scale(1.3); }
+    #slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%;
+              background: #8a7862; border: 2.5px solid var(--paper);
+              box-shadow: 0 0 0 1.5px #8a7862; cursor: pointer; }
+    #slider::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; border: none; }
+    #slider::-moz-range-progress { height: 3px; background: #8a7862; border-radius: 2px; }
+    /* Key-year markers under the slider track; each carries the event
+       in its title attribute. The 7px inset aligns marks with the thumb. */
+    #ticks { position: absolute; left: 7px; right: 7px;
+             top: calc(50% + 9px); height: 6px; }
+    .tick { position: absolute; width: 2px; height: 5px;
+            background: var(--ink-soft); opacity: 0.4; cursor: help; }
+    #search { width: 150px; padding: 6px 14px; box-sizing: border-box;
+              border: 1px solid var(--rule); border-radius: 20px;
               background: #fff; color: var(--ink); font-size: 13px; }
     #search::placeholder { color: var(--ink-soft); }
     #search.not-found { border-color: #b3564a; outline-color: #b3564a; }
@@ -76,10 +89,11 @@
     /* Narrow screens: the map keeps its width; drop the title, shrink
        the rest. The Sources link stays -- the license requires it. */
     @media (max-width: 720px) {
-      #controls { gap: 10px; padding: 0 12px; }
+      #controls { gap: 8px; padding: 0 12px; }
+      .sep { margin: 0; }
       #title { display: none; }
       #search { width: 96px; }
-      #year { min-width: 56px; font-size: 20px; }
+      #year { min-width: 52px; font-size: 22px; }
     }
   </style>
 </head>
@@ -87,13 +101,15 @@
   <div id="map"></div>
   <div id="controls">
     <span id="title">Historical Atlas</span>
+    <span class="sep"></span>
     <button id="play" aria-label="Play" title="Play through the years (space)">&#9654;</button>
     <button id="speed" aria-label="Playback speed" title="Playback speed">1&times;</button>
+    <span id="year">1910</span>
     <div id="timeline">
       <input type="range" id="slider" min="1886" max="2019" value="1910" step="1">
       <div id="ticks"></div>
     </div>
-    <span id="year">1910</span>
+    <span class="sep"></span>
     <input type="search" id="search" placeholder="Find a country&hellip;">
     <a id="sources-link" href="sources.html">Sources</a>
   </div>

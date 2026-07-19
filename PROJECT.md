@@ -533,6 +533,36 @@ vektorfliser, hendelser og Wikidata.
 Ta dem én om gangen, og bare hvis du har lyst. Fra fase 4 er prosjektet
 ferdig nok til å vises fram — resten er fordi det er gøy.
 
+#### Kandidat: landflagg på kartet
+
+Vise et lite flaggikon sentrert på hvert land. Grunnarbeidet er gjort og
+reversert — notert her for å ikke glemme opplegget.
+
+**Tilnærmingen som ble prøvd:**
+- `flags.js`: navn → ISO 3166-1 alpha-2-kode (~100 land dekket, inkl.
+  historiske navn som «Russia (Soviet Union)» → `ru`)
+- Flaggbilder fra `flagcdn.com/w40/{iso}.png` lastes inn i MapLibre med
+  `map.loadImage` / `map.addImage`
+- Et eget GeoJSON-kildelag med sentralpunktkoordinater og `iso`-egenskap
+- Symbol-lag med `icon-image: ["get", "iso"]` plassert under tekstetikettene
+- `icon-allow-overlap: false` sørger for at MapLibre skjuler overlappende
+  flagg automatisk ved lav zoom — bare de store landene synes da
+- Flaggene oppdateres asynkront etter at grensedata er lastet inn
+
+**Hvorfor utsatt:**
+- Historiske stater uten ISO-kode (Østerrike-Ungarn, Bokhara, osv.) får
+  ikke flagg — enten må man finne alternative bildekilder eller la dem
+  stå tomme
+- ~130 HTTP-kall per årstall ved første innlasting (én per land), selv om
+  bilder caches etter det
+- Visuelt kan det bli rotete — flagg og tekstetiketter konkurrerer om plass,
+  spesielt i Europa der landene er tette
+
+**Hva som gjenstår hvis det skal inn igjen:**
+- Vurder en lokal sprite-fil i stedet for per-flagg-HTTP-kall
+- Finn bildekilder for historiske stater uten ISO-kode
+- Test visuell balanse mot tekstetikettene (offset, størrelse, zoom-terskel)
+
 ---
 
 ## 8. Risikoer

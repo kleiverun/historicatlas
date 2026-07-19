@@ -26,6 +26,12 @@ const searchInput = document.getElementById("search");
 const YEAR_MIN = Number(slider.min);
 const YEAR_MAX = Number(slider.max);
 
+function updateSliderFill() {
+  const pct = (slider.value - slider.min) / (slider.max - slider.min) * 100;
+  slider.style.setProperty('--pct', pct + '%');
+}
+updateSliderFill();
+
 // A shared link like index.html#1918 opens the map at that year.
 const initialYear = parseYearHash(location.hash, YEAR_MIN, YEAR_MAX);
 if (initialYear !== null) {
@@ -164,7 +170,12 @@ map.on("load", () => {
   });
 
   map.on("click", "borders-fill", (event) => {
-    openCountryPopup(event.features[0].properties, event.lngLat);
+    const props = event.features[0].properties;
+    openCountryPopup(props, event.lngLat);
+    const full = findCountry(currentGeoJson, props.name);
+    if (full) {
+      map.fitBounds(featureBounds(full), { padding: 60, maxZoom: 7, duration: 800 });
+    }
   });
 
   // The backend simplifies geometry for the zoom the request named, so
@@ -237,12 +248,14 @@ function setYear(year) {
   const clamped = Math.min(YEAR_MAX, Math.max(YEAR_MIN, Number(year)));
   slider.value = clamped;
   yearLabel.textContent = clamped;
+  updateSliderFill();
   scheduleLoad(120);
 }
 
 slider.addEventListener("input", () => {
   stopPlayback(); // grabbing the slider takes over from autoplay
   yearLabel.textContent = slider.value;
+  updateSliderFill();
   scheduleLoad(120);
 });
 
@@ -277,6 +290,7 @@ function startPlayback() {
     }
     slider.value = next;
     yearLabel.textContent = next;
+    updateSliderFill();
     loadYear(next);
     prefetchYear(next + 1);
   }, BASE_TICK_MS / SPEEDS[speedIndex]);

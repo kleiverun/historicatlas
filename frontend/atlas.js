@@ -80,6 +80,26 @@ function labelPoints(geoJson) {
   return { type: "FeatureCollection", features };
 }
 
+// Bounding box of all polygons in a feature: [[minLng, minLat], [maxLng, maxLat]].
+function featureBounds(feature) {
+  let minLng = Infinity, minLat = Infinity;
+  let maxLng = -Infinity, maxLat = -Infinity;
+  const polygons = feature.geometry.type === "Polygon"
+    ? [feature.geometry.coordinates]
+    : feature.geometry.coordinates;
+  for (const polygon of polygons) {
+    for (const ring of polygon) {
+      for (const [lng, lat] of ring) {
+        if (lng < minLng) minLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lng > maxLng) maxLng = lng;
+        if (lat > maxLat) maxLat = lat;
+      }
+    }
+  }
+  return [[minLng, minLat], [maxLng, maxLat]];
+}
+
 // "#1918" -> 1918, clamped to the dataset range so a shared link with
 // an out-of-range year still lands somewhere valid. Anything that
 // isn't a four-ish digit number -> null (caller keeps its default).
@@ -122,6 +142,6 @@ function formatPeriod(validFrom, validTo) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     PALETTE, colorFor, ringArea, ringCentroid,
-    featureAnchor, labelPoints, parseYearHash, findCountry, formatPeriod
+    featureAnchor, featureBounds, labelPoints, parseYearHash, findCountry, formatPeriod
   };
 }
