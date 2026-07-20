@@ -60,6 +60,24 @@ if (initialYear !== null) {
   updateSliderFill(); // [Feature 3] sync era + fill with hash year
 }
 
+// [Feature 10] Meridian and parallel lines for the graticule overlay.
+// step=30 gives lines every 30°; kept as GeoJSON so it renders with the
+// same pipeline as the country polygons (no extra tile server needed).
+function makeGraticule(step) {
+  const features = [];
+  for (let lng = -180; lng < 180; lng += step) {
+    features.push({ type: "Feature", properties: {},
+      geometry: { type: "LineString",
+        coordinates: Array.from({ length: 181 }, (_, i) => [lng, -90 + i]) } });
+  }
+  for (let lat = -90 + step; lat < 90; lat += step) {
+    features.push({ type: "Feature", properties: {},
+      geometry: { type: "LineString",
+        coordinates: Array.from({ length: 361 }, (_, i) => [-180 + i, lat]) } });
+  }
+  return { type: "FeatureCollection", features };
+}
+
 // No basemap tiles -- see PROJECT.md section 5 for why. The
 // background layer is just an ocean color; the country polygons
 // themselves are the entire map.
@@ -67,6 +85,7 @@ const map = new maplibregl.Map({
   container: "map",
   center: [10, 50],
   zoom: 3,
+  minZoom: 1.5,
   // The CC BY-NC-SA license wants the attribution visible where the
   // data is shown -- on the map itself, not only on the Sources page.
   attributionControl: {
@@ -111,11 +130,41 @@ map.on("load", () => {
   // exact same CShapes data, just unioned across all time instead of
   // filtered to one date.
   map.addSource("landmass", { type: "geojson", data: "landmass.geojson" });
+  map.addSource("graticule", { type: "geojson", data: makeGraticule(30) }); // [Feature 10]
+
   map.addLayer({
     id: "landmass-fill",
     type: "fill",
     source: "landmass",
     paint: { "fill-color": "#d8d2c4" }
+  });
+
+  // [Feature 10] Graticule inserted before landmass-fill so the lines
+  // are visible on ocean but hidden under land polygons.
+  map.addLayer({
+    id: "graticule-line",
+    type: "line",
+    source: "graticule",
+    paint: {
+      "line-color": "#7ba8c0",
+      "line-width": 0.6,
+      "line-opacity": 0.4
+    }
+  }, "landmass-fill");
+
+  // Soft shadow along coastlines: a wide blurred line on the landmass
+  // outline spreads outward onto the ocean, giving the land visual depth.
+  // Placed after landmass-fill so the inward half is hidden by land colors.
+  map.addLayer({
+    id: "coastline-shadow",
+    type: "line",
+    source: "landmass",
+    paint: {
+      "line-color": "#3d3428",
+      "line-width": 7,
+      "line-blur": 7,
+      "line-opacity": 0.22
+    }
   });
 
   // generateId gives every feature a numeric id, which feature-state

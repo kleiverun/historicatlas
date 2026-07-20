@@ -8,7 +8,9 @@
 // country keeps its color as the year slider moves.
 const PALETTE = [
   "#f4d7a1", "#e9b7a8", "#cfd9a8", "#b8d0c8",
-  "#d9c4dd", "#f0c199", "#c8cfe3", "#e3d3b1"
+  "#d9c4dd", "#f0c199", "#c8cfe3", "#e3d3b1",
+  "#c5ddb5", "#f2cfc0", "#b5cce0", "#ead5a5",
+  "#d4bcd8", "#bdd9cd", "#e8c8a0", "#ccd4e8"
 ];
 
 function colorFor(name) {
